@@ -1195,13 +1195,13 @@ void Compass::_probe_external_i2c_compasses(void)
     // external lis3mdl on bus 1 with default address
     FOREACH_I2C_EXTERNAL(i) {
         ADD_BACKEND(DRIVER_LIS3MDL, AP_Compass_LIS3MDL::probe(GET_I2C_DEVICE(i, HAL_COMPASS_LIS3MDL_I2C_ADDR),
-                    true, ROTATION_YAW_90));
+                    all_external, all_external?ROTATION_YAW_90:ROTATION_NONE));
     }
 
     // external lis3mdl on bus 1 with alternate address
     FOREACH_I2C_EXTERNAL(i) {
         ADD_BACKEND(DRIVER_LIS3MDL, AP_Compass_LIS3MDL::probe(GET_I2C_DEVICE(i, HAL_COMPASS_LIS3MDL_I2C_ADDR2),
-                    true, ROTATION_YAW_90));
+                    all_external, all_external?ROTATION_YAW_90:ROTATION_NONE));
     }
 #endif  // AP_COMPASS_LIS3MDL_ENABLED
 
@@ -1322,7 +1322,7 @@ void Compass::_detect_backends(void)
         ADD_BACKEND(DRIVER_EXTERNALAHRS, new AP_Compass_ExternalAHRS(serial_port));
     }
 #endif
-    
+
 #if AP_FEATURE_BOARD_DETECT
     if (AP_BoardConfig::get_board_type() == AP_BoardConfig::PX4_BOARD_PIXHAWK2) {
         // default to disabling LIS3MDL on pixhawk2 due to hardware issue
@@ -2041,7 +2041,7 @@ bool Compass::configured(uint8_t i)
 
     StateIndex id = _get_state_id(Priority(i));
     // exit immediately if dev_id hasn't been detected
-    if (_state[id].detected_dev_id == 0 || 
+    if (_state[id].detected_dev_id == 0 ||
         id == COMPASS_MAX_INSTANCES) {
         return false;
     }

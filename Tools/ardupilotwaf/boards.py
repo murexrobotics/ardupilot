@@ -153,7 +153,7 @@ class Board:
 
         if cfg.options.enable_networking_tests:
             env.CXXFLAGS += ['-DAP_NETWORKING_TESTS_ENABLED=1']
-            
+
         d = env.get_merged_dict()
         # Always prepend so that arguments passed in the command line get
         # the priority.
@@ -245,7 +245,7 @@ class Board:
             want_version = cfg.options.assert_cc_version
             if have_version != want_version:
                 cfg.fatal("cc version mismatch: %s should be %s" % (have_version, want_version))
-        
+
         if 'clang' in cfg.env.COMPILER_CC:
             env.CFLAGS += [
                 '-fcolor-diagnostics',
@@ -319,7 +319,7 @@ class Board:
 
         if cfg.options.private_key:
             env.PRIVATE_KEY = cfg.options.private_key
-            
+
         env.CXXFLAGS += [
             '-std=gnu++11',
 
@@ -472,7 +472,7 @@ class Board:
 
         if cfg.options.postype_single:
             env.CXXFLAGS += ['-DHAL_WITH_POSTYPE_DOUBLE=0']
-            
+
         if cfg.options.osd or cfg.options.osd_fonts:
             env.CXXFLAGS += ['-DOSD_ENABLED=1', '-DHAL_MSP_ENABLED=1']
 
@@ -684,7 +684,7 @@ class sitl(Board):
 
         if not cfg.options.disable_networking:
             env.CXXFLAGS += ['-DAP_NETWORKING_ENABLED=1']
-        
+
         if cfg.options.ubsan or cfg.options.ubsan_abort:
             env.CXXFLAGS += [
                 "-fsanitize=undefined",
@@ -900,7 +900,7 @@ class esp32(Board):
             print("USING EXPRESSIF IDF:"+str(env.idf))
             return cfg.root.find_dir(env.IDF+p).abspath()
         try:
-            env.IDF = os.environ['IDF_PATH'] 
+            env.IDF = os.environ['IDF_PATH']
         except:
             env.IDF = cfg.srcnode.abspath()+"/modules/esp_idf"
 
@@ -912,7 +912,7 @@ class esp32(Board):
         )
 
         tt = self.name[5:] #leave off 'esp32' so we just get 'buzz','diy','icarus, etc
-        
+
         # this makes sure we get the correct subtype
         env.DEFINES.update(
             ENABLE_HEAP = 0,
@@ -1099,7 +1099,7 @@ class chibios(Board):
             if not self.cc_version_gte(cfg, 10, 2):
                 # require at least 10.2 compiler
                 cfg.fatal("ChibiOS build requires g++ version 10.2.1 or later, found %s" % '.'.join(cfg.env.CC_VERSION))
-            
+
         if cfg.env.ENABLE_ASSERTS:
             cfg.msg("Enabling ChibiOS asserts", "yes")
             env.CFLAGS += [ '-DHAL_CHIBIOS_ENABLE_ASSERTS' ]
@@ -1124,7 +1124,7 @@ class chibios(Board):
             env.CXXFLAGS += [ '-DHAL_CHIBIOS_ENABLE_MALLOC_GUARD' ]
         else:
             cfg.msg("Enabling malloc guard", "no")
-            
+
         if cfg.env.ENABLE_STATS:
             cfg.msg("Enabling ChibiOS thread statistics", "yes")
             env.CFLAGS += [ '-DHAL_ENABLE_THREAD_STATISTICS' ]
@@ -1276,7 +1276,7 @@ class linux(Board):
             cfg.define('HAL_NUM_CAN_IFACES', 2)
             cfg.define('HAL_CANFD_SUPPORTED', 1)
             cfg.define('CANARD_ENABLE_CANFD', 1)
-        
+
         if self.with_can:
             env.DEFINES.update(CANARD_MULTI_IFACE=1,
                                CANARD_IFACE_ALL = 0x3)
@@ -1448,7 +1448,7 @@ class vnav(linux):
         env.DEFINES.update(
             CONFIG_HAL_BOARD_SUBTYPE = 'HAL_BOARD_SUBTYPE_LINUX_VNAV',
         )
-        
+
 class disco(linux):
     toolchain = 'arm-linux-gnueabihf'
 
@@ -1542,7 +1542,7 @@ class canzero(linux):
         env.DEFINES.update(
             CONFIG_HAL_BOARD_SUBTYPE = 'HAL_BOARD_SUBTYPE_LINUX_CANZERO',
         )
-        
+
 class SITL_static(sitl):
     def configure_env(self, cfg, env):
         super(SITL_static, self).configure_env(cfg, env)

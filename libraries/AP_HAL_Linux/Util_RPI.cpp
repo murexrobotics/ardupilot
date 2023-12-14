@@ -9,7 +9,8 @@
     CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_PXFMINI || \
     CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_NAVIGATOR || \
     CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_OBAL_V1 || \
-    CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_CANZERO
+    CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_CANZERO || \
+    CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_MUREX_CARRIER
 
 #include <errno.h>
 #include <stdarg.h>
@@ -32,10 +33,10 @@ UtilRPI::UtilRPI()
 }
 
 
-// 
+//
 // previous appraoch was using /proc/device-tree/system/linux,revision
 // now we use /proc/device-tree/soc/ranges see: https://forums.raspberrypi.com//viewtopic.php?t=244031
-void UtilRPI::_get_board_type_using_peripheral_base() 
+void UtilRPI::_get_board_type_using_peripheral_base()
 {
     FILE *fp;
     uint32_t base=0x00;
@@ -52,7 +53,7 @@ void UtilRPI::_get_board_type_using_peripheral_base()
                 base = buf[8]<<24 | buf[9]<<16 | buf[10]<<8 | buf[11];
             if (!base && (len>15))
                 base = buf[12]<<24 | buf[13]<<16 | buf[14]<<8 | buf[15];
-            
+
         }
         fclose(fp);
     }
