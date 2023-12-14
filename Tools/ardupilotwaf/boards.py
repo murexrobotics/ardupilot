@@ -1490,7 +1490,7 @@ class dark(linux):
         )
 
 class pxfmini(linux):
-    toolchain = 'arm-linux-gnueabihf'
+    toolchain = 'armv7-linux-gnueabihf'
 
     def configure_env(self, cfg, env):
         super(pxfmini, self).configure_env(cfg, env)
@@ -1553,3 +1553,14 @@ class SITL_x86_64_linux_gnu(SITL_static):
 
 class SITL_arm_linux_gnueabihf(SITL_static):
     toolchain = 'arm-linux-gnueabihf'
+
+
+class murex_carrier(linux):
+    toolchain = 'armv7-linux-gnueabihf'
+
+    def configure_env(self, cfg, env):
+        super(murex_carrier, self).configure_env(cfg, env)
+
+        env.DEFINES.update(
+            CONFIG_HAL_BOARD_SUBTYPE = 'HAL_BOARD_SUBTYPE_LINUX_MUREX_CARRIER',
+        )
