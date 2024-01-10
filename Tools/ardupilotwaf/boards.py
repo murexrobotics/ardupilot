@@ -1556,7 +1556,7 @@ class SITL_arm_linux_gnueabihf(SITL_static):
 
 
 class murex_carrier(linux):
-    toolchain = 'armv7-linux-gnueabihf'
+    toolchain = 'arm-linux-gnueabihf'
 
     def configure_env(self, cfg, env):
         super(murex_carrier, self).configure_env(cfg, env)
