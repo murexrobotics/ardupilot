@@ -388,8 +388,7 @@ extern const AP_Param::Info        var_info[];
 static const struct AP_Param::defaults_table_struct defaults_table[] = {
     { "BRD_SAFETY_DEFLT",    0 },
     { "ARMING_CHECK",        AP_Arming::ARMING_CHECK_RC |
-                             AP_Arming::ARMING_CHECK_VOLTAGE |
-                             AP_Arming::ARMING_CHECK_BATTERY},
+                             AP_Arming::ARMING_CHECK_VOLTAGE},
     { "CIRCLE_RATE",         2.0f},
     { "ATC_ACCEL_Y_MAX",     110000.0f},
     { "ATC_RATE_Y_MAX",      180.0f},
@@ -418,6 +417,34 @@ static const struct AP_Param::defaults_table_struct defaults_table[] = {
     { "SERVO14_FUNCTION",    60},    // k_rcin10, lights 2
     { "SERVO16_FUNCTION",    7},     // k_mount_tilt
     { "SERVO16_REVERSED",    1},
+// https://www.ardusub.com/developers/full-parameter-list.html
+#elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_MUREX_CARRIER
+    // Peripherals
+    { "BARO_PROBE_EXT",      768},
+    
+    // Lua Scripting/ MASCP
+    { "SCR_ENABLE",          1},
+    { "SERIAL1_PROTOCOL",    28},
+    { "SERIAL1_OPTIONS",     0},
+    { "SERIAL1_BAUD",        115},
+
+    // Optical Flow
+    { "SERIAL1_PROTOCOL",    18},
+    { "SERIAL1_OPTIONS",     0},
+    { "SERIAL1_BAUD",        19},
+
+    // INA226
+    { "BATT_MONITOR",        21},
+    { "BATT_CAPACITY",       0},
+    { "BATT_SHUNT",          0.003},
+    { "BATT_I2C_BUS",        1},
+    { "BATT_I2C_ADDR",       69}
+    { "BATT_OPTIONS",        0}
+
+    // { "SERVO9_FUNCTION",     59},    // k_rcin9, lights 1
+    // { "SERVO10_FUNCTION",    60},    // k_rcin10, lights 2
+    // { "SERVO11_FUNCTION",    7},     // k_mount_tilt
+    // { "SERVO11_REVERSED",    1},
 #else
     { "BARO_PROBE_EXT",      768},
     { "SERVO9_FUNCTION",     59},    // k_rcin9, lights 1
