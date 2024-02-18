@@ -429,17 +429,43 @@ static const struct AP_Param::defaults_table_struct defaults_table[] = {
     { "SERIAL1_BAUD",        115},
 
     // Optical Flow
-    { "SERIAL1_PROTOCOL",    18},
-    { "SERIAL1_OPTIONS",     0},
-    { "SERIAL1_BAUD",        19},
+    { "SERIAL2_PROTOCOL",    18},
+    { "SERIAL2_OPTIONS",     0},
+    { "SERIAL2_BAUD",        19},
 
     // INA226
     { "BATT_MONITOR",        21},
-    { "BATT_CAPACITY",       0},
-    { "BATT_SHUNT",          0.003},
-    { "BATT_I2C_BUS",        1},
-    { "BATT_I2C_ADDR",       69}
-    { "BATT_OPTIONS",        0}
+    { "BATT_CAPACITY",       3000},
+    // { "BATT_SHUNT",          0.003},
+    // { "BATT_I2C_BUS",        1},
+    // { "BATT_I2C_ADDR",       69},
+    // { "BATT_OPTIONS",        0},
+
+
+    { "AHRS_ORIENTATION", 29}, // Pitch90Roll180
+    { "COMPASS_ORIENT", 29},
+
+
+    { "SERVO9_FUNCTION", 0},
+    { "SERVO9_MIN", 500},
+    { "SERVO9_MAX", 2200},
+    { "SERVO10_FUNCTION", 0},
+    { "SERVO10_MIN", 500},
+    { "SERVO10_MAX", 2200},
+    { "SERVO11_FUNCTION", 0},
+    { "SERVO11_MIN", 500},
+    { "SERVO11_MAX", 2000},
+    { "SERVO12_FUNCTION", 0},
+    { "SERVO12_MIN", 500},
+    { "SERVO12_MAX", 2000},
+    { "SERVO13_FUNCTION", 0},
+    { "SERVO13_MIN", 500},
+    { "SERVO13_MAX", 2000},
+    { "SERVO14_FUNCTION", 0},
+    { "SERVO14_MIN", 500},
+    { "SERVO14_MAX", 2000},
+
+    { "FRAME_CONFIG", 2} // 8 Thruster configuration
 
     // { "SERVO9_FUNCTION",     59},    // k_rcin9, lights 1
     // { "SERVO10_FUNCTION",    60},    // k_rcin10, lights 2

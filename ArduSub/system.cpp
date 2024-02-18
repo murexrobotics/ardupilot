@@ -101,19 +101,19 @@ void Sub::init_ardupilot()
     optflow.init(MASK_LOG_OPTFLOW);
 #endif
 
-#if HAL_MOUNT_ENABLED
-    // initialise camera mount
-    camera_mount.init();
-    // This step is necessary so that the servo is properly initialized
-    camera_mount.set_angle_target(0, 0, 0, false);
-    // for some reason the call to set_angle_targets changes the mode to mavlink targeting!
-    camera_mount.set_mode(MAV_MOUNT_MODE_RC_TARGETING);
-#endif
+// #if HAL_MOUNT_ENABLED
+//     // initialise camera mount
+//     camera_mount.init();
+//     // This step is necessary so that the servo is properly initialized
+//     camera_mount.set_angle_target(0, 0, 0, false);
+//     // for some reason the call to set_angle_targets changes the mode to mavlink targeting!
+//     camera_mount.set_mode(MAV_MOUNT_MODE_RC_TARGETING);
+// #endif
 
-#if AP_CAMERA_ENABLED
-    // initialise camera
-    camera.init();
-#endif
+// #if AP_CAMERA_ENABLED
+//     // initialise camera
+//     camera.init();
+// #endif
 
 #ifdef USERHOOK_INIT
     USERHOOK_INIT
