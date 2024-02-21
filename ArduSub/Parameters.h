@@ -436,41 +436,41 @@ static const struct AP_Param::defaults_table_struct defaults_table[] = {
     // INA226
     { "BATT_MONITOR",        21},
     { "BATT_CAPACITY",       3000},
+    // --- Unrecognized battery monitor parameters??
     // { "BATT_SHUNT",          0.003},
     // { "BATT_I2C_BUS",        1},
     // { "BATT_I2C_ADDR",       69},
     // { "BATT_OPTIONS",        0},
 
+    // Movement
+    { "AHRS_ORIENTATION",    28}, // Roll90Pitch90
+    { "FRAME_CONFIG",        2}, // 8 Thruster configuration
 
-    { "AHRS_ORIENTATION", 29}, // Pitch90Roll180
-    { "COMPASS_ORIENT", 29},
+    // ----- Button Mapping -----
+    { "BTN0_FUNCTION",       1}, // Shift
+    { "BTN4_FUNCTION",       4}, // Disarm
+    { "BTN6_FUNCTION",       3}, // Arm
+    { "BTN0_SFUNCTION",      0} // Disabled
+ 
+    // Mode Controls
+    { "BTN1_FUNCTION",       5}, // Manual
+    { "BTN1_SFUNCTION",      12}, // Acro
+    { "BTN2_FUNCTION",       7}, // Depth Hold
+    { "BTN2_SFUNCTION",      8}, // Position Hold
+    { "BTN3_FUNCTION",       6}, // Stabilize
+    
+    // Trim Controls
+    { "BTN11_FUNCTION",      46}, // Trim Pitch Increase
+    { "BTN12_FUNCTION",      47}, // Trim Pitch Decrease
+    { "BTN13_FUNCTION",      45}, // Trim Roll Decrease
+    { "BTN14_FUNCTION",      44}, // Trim Roll Increase
 
+    // Custom Buttons
+    { "BTN11_SFUNCTION",     108}, // Scripting Button: arm turn right
+    { "BTN12_SFUNCTION",     109}, // Scripting Button: arm turn left
+    { "BTN13_SFUNCTION",     110}, // Scripting Button: arm close
+    { "BTN14_SFUNCTION",     111}, // Scripting Button: arm open
 
-    { "SERVO9_FUNCTION", 0},
-    { "SERVO9_MIN", 500},
-    { "SERVO9_MAX", 2200},
-    { "SERVO10_FUNCTION", 0},
-    { "SERVO10_MIN", 500},
-    { "SERVO10_MAX", 2200},
-    { "SERVO11_FUNCTION", 0},
-    { "SERVO11_MIN", 500},
-    { "SERVO11_MAX", 2000},
-    { "SERVO12_FUNCTION", 0},
-    { "SERVO12_MIN", 500},
-    { "SERVO12_MAX", 2000},
-    { "SERVO13_FUNCTION", 0},
-    { "SERVO13_MIN", 500},
-    { "SERVO13_MAX", 2000},
-    { "SERVO14_FUNCTION", 0},
-    { "SERVO14_MIN", 500},
-    { "SERVO14_MAX", 2000},
-
-    { "FRAME_CONFIG", 2} // 8 Thruster configuration
-
-    // { "SERVO9_FUNCTION",     59},    // k_rcin9, lights 1
-    // { "SERVO10_FUNCTION",    60},    // k_rcin10, lights 2
-    // { "SERVO11_FUNCTION",    7},     // k_mount_tilt
-    // { "SERVO11_REVERSED",    1},
 #else
     { "BARO_PROBE_EXT",      768},
     { "SERVO9_FUNCTION",     59},    // k_rcin9, lights 1
