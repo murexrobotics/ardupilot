@@ -5,6 +5,8 @@
 
 #include "AP_Logger_config.h"
 
+#if HAL_LOGGING_ENABLED
+
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Common/AP_Common.h>
 #include <AP_Param/AP_Param.h>
@@ -185,7 +187,7 @@ class AP_Logger
 public:
     FUNCTOR_TYPEDEF(vehicle_startup_message_Writer, void);
 
-    AP_Logger(const AP_Int32 &log_bitmask);
+    AP_Logger();
 
     /* Do not allow copies */
     CLASS_NO_COPY(AP_Logger);
@@ -196,7 +198,7 @@ public:
     }
 
     // initialisation
-    void Init(const struct LogStructure *structure, uint8_t num_types);
+    void init(const AP_Int32 &log_bitmask, const struct LogStructure *structure, uint8_t num_types);
     void set_num_types(uint8_t num_types) { _num_types = num_types; }
 
     bool CardInserted(void);
@@ -424,7 +426,7 @@ private:
     #define LOGGER_MAX_BACKENDS 2
     uint8_t _next_backend;
     AP_Logger_Backend *backends[LOGGER_MAX_BACKENDS];
-    const AP_Int32 &_log_bitmask;
+    const AP_Int32 *_log_bitmask;
 
     enum class Backend_Type : uint8_t {
         NONE       = 0,
@@ -609,3 +611,13 @@ private:
 namespace AP {
     AP_Logger &logger();
 };
+
+#define LOGGER_WRITE_ERROR(subsys, err) AP::logger().Write_Error(subsys, err)
+#define LOGGER_WRITE_EVENT(evt) AP::logger().Write_Event(evt)
+
+#else
+
+#define LOGGER_WRITE_ERROR(subsys, err)
+#define LOGGER_WRITE_EVENT(evt)
+
+#endif  // HAL_LOGGING_ENABLED

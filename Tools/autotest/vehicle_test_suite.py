@@ -4273,7 +4273,8 @@ class TestSuite(ABC):
         self.context_push()
         self.set_parameters({
             "NET_ENABLED": 1,
-            "LOG_DARM_RATEMAX": 2, # make small logs
+            "LOG_DISARMED": 1,
+            "LOG_DARM_RATEMAX": 1, # make small logs
             # UDP client
             "NET_P1_TYPE": 1,
             "NET_P1_PROTOCOL": 2,
@@ -4316,11 +4317,14 @@ class TestSuite(ABC):
             self.progress("Downloading log with %s %s" % (name, e))
             filename = "MAVProxy-downloaded-net-log-%s.BIN" % name
 
-            mavproxy = self.start_mavproxy(master=e)
+            mavproxy = self.start_mavproxy(master=e, options=['--source-system=123'])
             self.mavproxy_load_module(mavproxy, 'log')
             self.wait_heartbeat()
             mavproxy.send("log list\n")
             mavproxy.expect("numLogs")
+            # ensure the full list of logs has come out
+            for i in range(5):
+                self.wait_heartbeat()
             mavproxy.send("log download latest %s\n" % filename)
             mavproxy.expect("Finished downloading", timeout=120)
             self.mavproxy_unload_module(mavproxy, 'log')
@@ -4330,7 +4334,7 @@ class TestSuite(ABC):
             # multicast UDP client
             "NET_P1_TYPE": 1,
             "NET_P1_PROTOCOL": 2,
-            "NET_P1_PORT": 14550,
+            "NET_P1_PORT": 16005,
             "NET_P1_IP0": 239,
             "NET_P1_IP1": 255,
             "NET_P1_IP2": 145,
@@ -4338,24 +4342,30 @@ class TestSuite(ABC):
             # Broadcast UDP client
             "NET_P2_TYPE": 1,
             "NET_P2_PROTOCOL": 2,
-            "NET_P2_PORT": 16005,
+            "NET_P2_PORT": 16006,
             "NET_P2_IP0": 255,
             "NET_P2_IP1": 255,
             "NET_P2_IP2": 255,
             "NET_P2_IP3": 255,
+            "NET_P3_TYPE": -1,
+            "NET_P4_TYPE": -1,
+            "LOG_DISARMED": 0,
             })
         self.reboot_sitl()
-        endpoints = [('UDPMulticast', 'mcast:') ,
-                     ('UDPBroadcast', ':16005')]
+        endpoints = [('UDPMulticast', 'mcast:16005') ,
+                     ('UDPBroadcast', ':16006')]
         for name, e in endpoints:
             self.progress("Downloading log with %s %s" % (name, e))
             filename = "MAVProxy-downloaded-net-log-%s.BIN" % name
 
-            mavproxy = self.start_mavproxy(master=e)
+            mavproxy = self.start_mavproxy(master=e, options=['--source-system=123'])
             self.mavproxy_load_module(mavproxy, 'log')
             self.wait_heartbeat()
             mavproxy.send("log list\n")
             mavproxy.expect("numLogs")
+            # ensure the full list of logs has come out
+            for i in range(5):
+                self.wait_heartbeat()
             mavproxy.send("log download latest %s\n" % filename)
             mavproxy.expect("Finished downloading", timeout=120)
             self.mavproxy_unload_module(mavproxy, 'log')
@@ -4386,8 +4396,9 @@ class TestSuite(ABC):
         self.mavproxy_load_module(mavproxy, 'log')
         mavproxy.send("log list\n")
         mavproxy.expect("numLogs")
-        self.wait_heartbeat()
-        self.wait_heartbeat()
+        # ensure the full list of logs has come out
+        for i in range(5):
+            self.wait_heartbeat()
         mavproxy.send("set shownoise 0\n")
         mavproxy.send("log download latest %s\n" % filename)
         mavproxy.expect("Finished downloading", timeout=120)
@@ -7955,7 +7966,7 @@ Also, ignores heartbeats not from our target system'''
         if "STATUSTEXT" not in c.collections:
             raise NotAchievedException("Asked to check context but it isn't collecting!")
         for x in c.collections["STATUSTEXT"]:
-            self.progress("  statustext=%s vs text=%s" % (x.text, text))
+            self.progress("  statustext want=(%s) got=(%s)" % (x.text, text))
             if regex:
                 if re.match(text, x.text):
                     return x
@@ -8434,7 +8445,7 @@ Also, ignores heartbeats not from our target system'''
     def defaults_filepath(self):
         return None
 
-    def start_mavproxy(self, sitl_rcin_port=None, master=None):
+    def start_mavproxy(self, sitl_rcin_port=None, master=None, options=None):
         self.start_mavproxy_count += 1
         if self.mavproxy is not None:
             return self.mavproxy
@@ -8452,11 +8463,18 @@ Also, ignores heartbeats not from our target system'''
         if master is None:
             master = 'tcp:127.0.0.1:%u' % self.adjust_ardupilot_port(5762)
 
+        if options is None:
+            options = self.mavproxy_options()
+        else:
+            op = self.mavproxy_options().copy()
+            op.extend(options)
+            options = op
+
         mavproxy = util.start_MAVProxy_SITL(
             self.vehicleinfo_key(),
             master=master,
             logfile=self.mavproxy_logfile,
-            options=self.mavproxy_options(),
+            options=options,
             pexpect_timeout=pexpect_timeout,
             sitl_rcin_port=sitl_rcin_port,
         )
@@ -13491,11 +13509,11 @@ switch value'''
         # if gps_type is None we auto-detect
         sim_gps = [
             # (0, "NONE"),
-            (1, "UBLOX", None, "u-blox", 5, 'detected'),
-            (5, "NMEA", 5, "NMEA", 5, 'detected'),
-            (6, "SBP", None, "SBP", 5, 'detected'),
+            (1, "UBLOX", None, "u-blox", 5, 'probing'),
+            (5, "NMEA", 5, "NMEA", 5, 'probing'),
+            (6, "SBP", None, "SBP", 5, 'probing'),
             # (7, "SBP2", 9, "SBP2", 5),  # broken, "waiting for config data"
-            (8, "NOVA", 15, "NOVA", 5, 'detected'),  # no attempt to auto-detect this in AP_GPS
+            (8, "NOVA", 15, "NOVA", 5, 'probing'),  # no attempt to auto-detect this in AP_GPS
             (11, "GSOF", 11, "GSOF", 5, 'specified'), # no attempt to auto-detect this in AP_GPS
             (19, "MSP", 19, "MSP", 32, 'specified'),  # no attempt to auto-detect this in AP_GPS
             # (9, "FILE"),
@@ -13510,7 +13528,11 @@ switch value'''
             self.set_parameter("GPS_TYPE", gps_type)
             self.context_clear_collection('STATUSTEXT')
             self.reboot_sitl()
-            self.wait_statustext("%s as %s" % (detect_prefix, detect_name), check_context=True)
+            if detect_prefix == "probing":
+                self.wait_statustext(f"probing for {detect_name}", check_context=True)
+            else:
+                self.wait_statustext(f"specified as {detect_name}", check_context=True)
+            self.wait_statustext(f"detected {detect_name}", check_context=True)
             n = self.poll_home_position(timeout=120)
             distance = self.get_distance_int(orig, n)
             if distance > 1:
@@ -13547,8 +13569,8 @@ switch value'''
         # AP_GPS::init() at boot time, so it will never be detected.
         self.context_collect("STATUSTEXT")
         self.reboot_sitl()
-        self.wait_statustext("GPS 1: detected as u-blox", check_context=True)
-        self.wait_statustext("GPS 2: detected as u-blox", check_context=True)
+        self.wait_statustext("GPS 1: detected u-blox", check_context=True)
+        self.wait_statustext("GPS 2: detected u-blox", check_context=True)
         m = self.assert_receive_message("GPS2_RAW")
         self.progress(self.dump_message_verbose(m))
         # would be nice for it to take some time to get a fix....

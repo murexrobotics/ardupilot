@@ -414,6 +414,9 @@ def do_build(opts, frame_options):
     if opts.disable_networking:
         cmd_configure.append("--disable-networking")
 
+    if opts.enable_ppp:
+        cmd_configure.append("--enable-ppp")
+
     if opts.enable_networking_tests:
         cmd_configure.append("--enable-networking-tests")
 
@@ -669,8 +672,8 @@ def start_antenna_tracker(opts):
 def start_CAN_Periph(opts, frame_info):
     """Compile and run the sitl_periph"""
 
-    progress("Preparing sitl_periph_gps")
-    options = vinfo.options["sitl_periph_gps"]['frames']['gps']
+    progress("Preparing sitl_periph_universal")
+    options = vinfo.options["sitl_periph_universal"]['frames']['universal']
     defaults_path = frame_info.get('periph_params_filename', None)
     if defaults_path is None:
         defaults_path = options.get('default_params_filename', None)
@@ -683,9 +686,9 @@ def start_CAN_Periph(opts, frame_info):
 
     if not cmd_opts.no_rebuild:
         do_build(opts, options)
-    exe = os.path.join(root_dir, 'build/sitl_periph_gps', 'bin/AP_Periph')
+    exe = os.path.join(root_dir, 'build/sitl_periph_universal', 'bin/AP_Periph')
     cmd = ["nice"]
-    cmd_name = "sitl_periph_gps"
+    cmd_name = "sitl_periph_universal"
     if opts.valgrind:
         cmd_name += " (valgrind)"
         cmd.append("valgrind")
@@ -1333,6 +1336,8 @@ group_sim.add_option("--enable-dds", action='store_true',
                      help="Enable the dds client to connect with ROS2/DDS")
 group_sim.add_option("--disable-networking", action='store_true',
                      help="Disable networking APIs")
+group_sim.add_option("--enable-ppp", action='store_true',
+                     help="Enable PPP networking")
 group_sim.add_option("--enable-networking-tests", action='store_true',
                      help="Enable networking tests")
 

@@ -281,11 +281,6 @@ public:
     // altitude at which nav control can start in takeoff
     AP_Float wp_navalt_min;
 
-#if STATS_ENABLED == ENABLED
-    // vehicle statistics
-    AP_Stats stats;
-#endif
-
     // whether to enforce acceptance of packets only from sysid_my_gcs
     AP_Int8 sysid_enforce;
 
@@ -309,11 +304,6 @@ public:
 
     // Land alt final stage
     AP_Int16 land_alt_low;
-
-
-#if AP_SCRIPTING_ENABLED
-    AP_Scripting scripting;
-#endif // AP_SCRIPTING_ENABLED
 
     // vibration failsafe enable/disable
     AP_Int8 fs_vibe_enabled;

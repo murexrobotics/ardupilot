@@ -4,6 +4,10 @@
 
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/HAL.h>
+#include <AP_Networking/AP_Networking_Config.h>
+#if AP_NETWORKING_ENABLED
+#include <AP_HAL/utility/Socket.h>
+#endif
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Filesystem/AP_Filesystem.h>
 
@@ -15,10 +19,6 @@
 #include <AP_Scripting/AP_Scripting.h>
 #include <string.h>
 
-#include <AP_Networking/AP_Networking_Config.h>
-#if AP_NETWORKING_ENABLED
-#include <AP_HAL/utility/Socket.h>
-#endif
 #include "lua/src/lauxlib.h"
 
 extern const AP_HAL::HAL& hal;
@@ -794,22 +794,20 @@ int lua_get_SocketAPM(lua_State *L) {
     const uint8_t datagram = get_uint8_t(L, 1);
     auto *scripting = AP::scripting();
 
-    if (scripting->num_net_sockets >= SCRIPTING_MAX_NUM_NET_SOCKET) {
-        return luaL_argerror(L, 1, "no sockets available");
-    }
-
     auto *sock = new SocketAPM(datagram);
     if (sock == nullptr) {
         return luaL_argerror(L, 1, "SocketAPM device nullptr");
     }
-    scripting->_net_sockets[scripting->num_net_sockets] = sock;
+    for (uint8_t i=0; i<SCRIPTING_MAX_NUM_NET_SOCKET; i++) {
+        if (scripting->_net_sockets[i] == nullptr) {
+            scripting->_net_sockets[i] = sock;
+            new_SocketAPM(L);
+            *((SocketAPM**)luaL_checkudata(L, -1, "SocketAPM")) = scripting->_net_sockets[i];
+            return 1;
+        }
+    }
 
-    new_SocketAPM(L);
-    *((SocketAPM**)luaL_checkudata(L, -1, "SocketAPM")) = scripting->_net_sockets[scripting->num_net_sockets];
-
-    scripting->num_net_sockets++;
-
-    return 1;
+    return luaL_argerror(L, 1, "no sockets available");
 }
 
 /*
@@ -822,17 +820,13 @@ int SocketAPM_close(lua_State *L) {
 
     auto *scripting = AP::scripting();
 
-    if (scripting->num_net_sockets == 0) {
-        return luaL_argerror(L, 1, "socket close error");
-    }
-
     // clear allocated socket
     for (uint8_t i=0; i<SCRIPTING_MAX_NUM_NET_SOCKET; i++) {
         if (scripting->_net_sockets[i] == ud) {
             ud->close();
             delete ud;
             scripting->_net_sockets[i] = nullptr;
-            scripting->num_net_sockets--;
+            *check_SocketAPM(L, 1) = nullptr;
             break;
         }
     }
@@ -848,28 +842,15 @@ int SocketAPM_sendfile(lua_State *L) {
 
     SocketAPM *ud = *check_SocketAPM(L, 1);
 
-    auto *scripting = AP::scripting();
-
-    if (scripting->num_net_sockets == 0) {
-        return luaL_argerror(L, 1, "sendfile error");
-    }
-
     auto *p = (luaL_Stream *)luaL_checkudata(L, 2, LUA_FILEHANDLE);
     int fd = p->f->fd;
-    bool ret = false;
 
-    // find the socket
-    for (uint8_t i=0; i<SCRIPTING_MAX_NUM_NET_SOCKET; i++) {
-        if (scripting->_net_sockets[i] == ud) {
-            ret = AP::network().sendfile(ud, fd);
-            if (ret) {
-                // remove from scripting, leave socket and fd open
-                p->f->fd = -1;
-                scripting->_net_sockets[i] = nullptr;
-                scripting->num_net_sockets--;
-            }
-            break;
-        }
+    bool ret = fd != -1 && AP::network().sendfile(ud, fd);
+    if (ret) {
+        // the fd is no longer valid. The lua script must
+        // still call close() to release the memory from the
+        // socket
+        p->f->fd = -1;
     }
 
     lua_pushboolean(L, ret);
@@ -912,23 +893,22 @@ int SocketAPM_accept(lua_State *L) {
     SocketAPM * ud = *check_SocketAPM(L, 1);
 
     auto *scripting = AP::scripting();
-    if (scripting->num_net_sockets >= SCRIPTING_MAX_NUM_NET_SOCKET) {
-        return luaL_argerror(L, 1, "no sockets available");
+
+    // find an empty slot
+    for (uint8_t i=0; i<SCRIPTING_MAX_NUM_NET_SOCKET; i++) {
+        if (scripting->_net_sockets[i] == nullptr) {
+            scripting->_net_sockets[i] = ud->accept(0);
+            if (scripting->_net_sockets[i] == nullptr) {
+                return 0;
+            }
+            new_SocketAPM(L);
+            *((SocketAPM**)luaL_checkudata(L, -1, "SocketAPM")) = scripting->_net_sockets[i];
+            return 1;
+        }
     }
 
-    auto *sock = ud->accept(0);
-    if (sock == nullptr) {
-        return 0;
-    }
-
-    scripting->_net_sockets[scripting->num_net_sockets] = sock;
-
-    new_SocketAPM(L);
-    *((SocketAPM**)luaL_checkudata(L, -1, "SocketAPM")) = scripting->_net_sockets[scripting->num_net_sockets];
-
-    scripting->num_net_sockets++;
-
-    return 1;
+    // out of socket slots, return nil, caller can retry
+    return 0;
 }
 
 #endif // AP_NETWORKING_ENABLED
@@ -948,6 +928,51 @@ int lua_print(lua_State *L) {
     GCS_SEND_TEXT(MAV_SEVERITY_DEBUG, "%s", luaL_checkstring(L, 1));
 
     return 0;
+}
+
+#if (!defined(HAL_BUILD_AP_PERIPH) || defined(HAL_PERIPH_ENABLE_RANGEFINDER))
+int lua_range_finder_handle_script_msg(lua_State *L) {
+    // Arg 1 => self (an instance of rangefinder_backend)
+    // Arg 2 => a float distance or a RangeFinder_State user data
+    binding_argcheck(L, 2);
+
+    // check_AP_RangeFinder_Backend aborts if not found. No need to check for null
+    AP_RangeFinder_Backend * ud = *check_AP_RangeFinder_Backend(L, 1);
+
+    bool result = false;
+
+    // Check to see if the first argument is the state structure.
+    const void *state_arg = luaL_testudata(L, 2, "RangeFinder_State");
+    if (state_arg != nullptr) {
+        result = ud->handle_script_msg(*static_cast<const RangeFinder::RangeFinder_State *>(state_arg));
+
+    } else {
+        // Otherwise assume the argument is a number and set the measurement.
+        result = ud->handle_script_msg(luaL_checknumber(L, 2));
+    }
+
+    lua_pushboolean(L, result);
+    return 1;
+}
+#endif
+
+/*
+  lua wants to abort, and doesn't have access to a panic function
+ */
+void lua_abort()
+{
+    INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
+#if AP_SIM_ENABLED
+    AP_HAL::panic("lua_abort called");
+#else
+    if (!hal.util->get_soft_armed()) {
+        AP_HAL::panic("lua_abort called");
+    }
+    // abort while flying, all we can do is loop
+    while (true) {
+        hal.scheduler->delay(1000);
+    }
+#endif
 }
 
 #endif  // AP_SCRIPTING_ENABLED

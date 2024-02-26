@@ -135,6 +135,11 @@ public:
     // true if is taking 
     virtual bool is_taking_off() const;
 
+    // true if throttle min/max limits should be applied
+    virtual bool use_throttle_limits() const;
+
+    // true if voltage correction should be applied to throttle
+    virtual bool use_battery_compensation() const;
 
 protected:
 
@@ -149,6 +154,9 @@ protected:
 
     // Helper to output to both k_rudder and k_steering servo functions
     void output_rudder_and_steering(float val);
+
+    // Output pilot throttle, this is used in stabilized modes without auto throttle control
+    void output_pilot_throttle();
 
 #if HAL_QUADPLANE_ENABLED
     // References for convenience, used by QModes
@@ -257,6 +265,8 @@ public:
     
     bool mode_allows_autotuning() const override { return true; }
 
+    void run() override;
+
 protected:
 
     bool _enter() override;
@@ -333,6 +343,7 @@ public:
     void navigate() override;
 
     bool isHeadingLinedUp(const Location loiterCenterLoc, const Location targetLoc);
+    bool isHeadingLinedUp_cd(const int32_t bearing_cd, const int32_t heading_cd);
     bool isHeadingLinedUp_cd(const int32_t bearing_cd);
 
     bool allows_throttle_nudging() const override { return true; }
@@ -387,6 +398,13 @@ public:
     void update() override;
 
     void run() override;
+
+    // true if throttle min/max limits should be applied
+    bool use_throttle_limits() const override { return false; }
+
+    // true if voltage correction should be applied to throttle
+    bool use_battery_compensation() const override { return false; }
+
 };
 
 
@@ -487,6 +505,8 @@ public:
     void update() override;
     
     bool mode_allows_autotuning() const override { return true; }
+
+    void run() override;
 
 };
 
@@ -783,7 +803,7 @@ protected:
     AP_Int16 target_dist;
     AP_Int8 level_pitch;
 
-    bool takeoff_started;
+    bool takeoff_mode_setup;
     Location start_loc;
 
     bool _enter() override;

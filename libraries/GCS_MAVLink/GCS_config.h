@@ -2,6 +2,7 @@
 
 #include <AP_HAL/AP_HAL_Boards.h>
 #include <AP_Relay/AP_Relay_config.h>
+#include <AP_Mission/AP_Mission_config.h>
 
 #ifndef HAL_GCS_ENABLED
 #define HAL_GCS_ENABLED 1
@@ -25,7 +26,7 @@
 // The command was added to the spec in January 2019 and to MAVLink in
 // ArduPilot in 4.1.x
 #ifndef AP_MAVLINK_MISSION_SET_CURRENT_ENABLED
-#define AP_MAVLINK_MISSION_SET_CURRENT_ENABLED 1
+#define AP_MAVLINK_MISSION_SET_CURRENT_ENABLED AP_MISSION_ENABLED
 #endif
 
 // AUTOPILOT_VERSION_REQUEST is slated to be removed; an instance of
@@ -88,7 +89,7 @@
 // sending warnings to the GCS in Sep 2022 if this command was used.
 // Copter 4.4.0 sends this warning.
 #ifndef AP_MAVLINK_MSG_MISSION_REQUEST_ENABLED
-#define AP_MAVLINK_MSG_MISSION_REQUEST_ENABLED 1
+#define AP_MAVLINK_MSG_MISSION_REQUEST_ENABLED AP_MISSION_ENABLED
 #endif
 
 // all commands can be executed by COMMAND_INT, so COMMAND_LONG isn't

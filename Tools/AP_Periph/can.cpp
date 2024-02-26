@@ -34,6 +34,7 @@
 #include <AP_HAL_ChibiOS/hwdef/common/watchdog.h>
 #elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <AP_HAL_SITL/CANSocketIface.h>
+#include <AP_HAL_SITL/AP_HAL_SITL.h>
 #endif
 
 #define IFACE_ALL ((1U<<(HAL_NUM_CAN_IFACES))-1U)
@@ -145,6 +146,10 @@ HALSITL::CANIface* AP_Periph_FW::can_iface_periph[HAL_NUM_CAN_IFACES];
 
 #if AP_CAN_SLCAN_ENABLED
 SLCAN::CANIface AP_Periph_FW::slcan_interface;
+#endif
+
+#ifdef EXT_FLASH_SIZE_MB
+static_assert(EXT_FLASH_SIZE_MB == 0, "DroneCAN bootloader cannot support external flash");
 #endif
 
 /*
@@ -367,8 +372,10 @@ void AP_Periph_FW::handle_begin_firmware_update(CanardInstance* canard_instance,
 {
 #if HAL_RAM_RESERVE_START >= 256
     // setup information on firmware request at start of ram
-    struct app_bootloader_comms *comms = (struct app_bootloader_comms *)HAL_RAM0_START;
-    memset(comms, 0, sizeof(struct app_bootloader_comms));
+    auto *comms = (struct app_bootloader_comms *)HAL_RAM0_START;
+    if (comms->magic != APP_BOOTLOADER_COMMS_MAGIC) {
+        memset(comms, 0, sizeof(*comms));
+    }
     comms->magic = APP_BOOTLOADER_COMMS_MAGIC;
 
     uavcan_protocol_file_BeginFirmwareUpdateRequest req;
@@ -427,7 +434,10 @@ void AP_Periph_FW::handle_allocation_response(CanardInstance* canard_instance, C
     // Copying the unique ID from the message
     uavcan_protocol_dynamic_node_id_Allocation msg;
 
-    uavcan_protocol_dynamic_node_id_Allocation_decode(transfer, &msg);
+    if (uavcan_protocol_dynamic_node_id_Allocation_decode(transfer, &msg)) {
+        // failed decode
+        return;
+    }
 
     // Obtaining the local unique ID
     uint8_t my_unique_id[sizeof(msg.unique_id.data)];
@@ -848,6 +858,13 @@ void AP_Periph_FW::onTransferReceived(CanardInstance* canard_instance,
         handle_notify_state(canard_instance, transfer);
         break;
 #endif
+
+#ifdef HAL_PERIPH_ENABLE_RELAY
+    case UAVCAN_EQUIPMENT_HARDPOINT_COMMAND_ID:
+        handle_hardpoint_command(canard_instance, transfer);
+        break;
+#endif
+
     }
 }
 
@@ -955,6 +972,11 @@ bool AP_Periph_FW::shouldAcceptTransfer(const CanardInstance* canard_instance,
 #if defined(HAL_PERIPH_ENABLE_NOTIFY)
     case ARDUPILOT_INDICATION_NOTIFYSTATE_ID:
         *out_data_type_signature = ARDUPILOT_INDICATION_NOTIFYSTATE_SIGNATURE;
+        return true;
+#endif
+#ifdef HAL_PERIPH_ENABLE_RELAY
+    case UAVCAN_EQUIPMENT_HARDPOINT_COMMAND_ID:
+        *out_data_type_signature = UAVCAN_EQUIPMENT_HARDPOINT_COMMAND_SIGNATURE;
         return true;
 #endif
     default:
@@ -1225,19 +1247,19 @@ void AP_Periph_FW::update_rx_protocol_stats(int16_t res)
 void AP_Periph_FW::processRx(void)
 {
     AP_HAL::CANFrame rxmsg;
-    for (auto &ins : instances) {
-        if (ins.iface == NULL) {
+    for (auto &instance : instances) {
+        if (instance.iface == NULL) {
             continue;
         }
 #if HAL_NUM_CAN_IFACES >= 2
-        if (can_protocol_cached[ins.index] != AP_CAN::Protocol::DroneCAN) {
+        if (can_protocol_cached[instance.index] != AP_CAN::Protocol::DroneCAN) {
             continue;
         }
 #endif
         while (true) {
             bool read_select = true;
             bool write_select = false;
-            ins.iface->select(read_select, write_select, nullptr, 0);
+            instance.iface->select(read_select, write_select, nullptr, 0);
             if (!read_select) { // No data pending
                 break;
             }
@@ -1246,7 +1268,7 @@ void AP_Periph_FW::processRx(void)
             //palToggleLine(HAL_GPIO_PIN_LED);
             uint64_t timestamp;
             AP_HAL::CANIface::CanIOFlags flags;
-            if (ins.iface->receive(rxmsg, timestamp, flags) <= 0) {
+            if (instance.iface->receive(rxmsg, timestamp, flags) <= 0) {
                 break;
             }
 #if HAL_PERIPH_CAN_MIRROR
@@ -1267,7 +1289,7 @@ void AP_Periph_FW::processRx(void)
 #endif
             rx_frame.id = rxmsg.id;
 #if CANARD_MULTI_IFACE
-            rx_frame.iface_id = ins.index;
+            rx_frame.iface_id = instance.index;
 #endif
 
             const int16_t res = canardHandleRxFrame(&dronecan.canard, &rx_frame, timestamp);
@@ -1341,7 +1363,7 @@ void AP_Periph_FW::node_status_send(void)
         uint8_t buffer[UAVCAN_PROTOCOL_NODESTATUS_MAX_SIZE];
         node_status.uptime_sec = AP_HAL::millis() / 1000U;
 
-        node_status.vendor_specific_status_code = hal.util->available_memory();
+        node_status.vendor_specific_status_code = MIN(hal.util->available_memory(), unsigned(UINT16_MAX));
 
         uint32_t len = uavcan_protocol_NodeStatus_encode(&node_status, buffer, !canfdout());
 
@@ -1362,14 +1384,14 @@ void AP_Periph_FW::node_status_send(void)
                                     buffer,
                                     len);
         }
-        for (auto &ins : instances) {
+        for (auto &instance : instances) {
             uint8_t buffer[DRONECAN_PROTOCOL_CANSTATS_MAX_SIZE];
             dronecan_protocol_CanStats can_stats;
-            const AP_HAL::CANIface::bus_stats_t *bus_stats = ins.iface->get_statistics();
+            const AP_HAL::CANIface::bus_stats_t *bus_stats = instance.iface->get_statistics();
             if (bus_stats == nullptr) {
                 return;
             }
-            can_stats.interface = ins.index;
+            can_stats.interface = instance.index;
             can_stats.tx_requests = bus_stats->tx_requests;
             can_stats.tx_rejected = bus_stats->tx_rejected;
             can_stats.tx_overflow = bus_stats->tx_overflow;
@@ -1808,6 +1830,9 @@ void AP_Periph_FW::can_update()
     #ifdef HAL_PERIPH_ENABLE_EFI
         can_efi_update();
     #endif
+#ifdef HAL_PERIPH_ENABLE_DEVICE_TEMPERATURE
+        temperature_sensor_update();
+#endif
     }
     const uint32_t now_us = AP_HAL::micros();
     while ((AP_HAL::micros() - now_us) < 1000) {
@@ -1827,23 +1852,42 @@ void AP_Periph_FW::can_update()
 }
 
 // printf to CAN LogMessage for debugging
-void can_printf(const char *fmt, ...)
+void can_vprintf(uint8_t severity, const char *fmt, va_list ap)
 {
+    // map MAVLink levels to CAN levels
+    uint8_t level = UAVCAN_PROTOCOL_DEBUG_LOGLEVEL_DEBUG;
+    switch (severity) {
+    case MAV_SEVERITY_DEBUG:
+        level = UAVCAN_PROTOCOL_DEBUG_LOGLEVEL_DEBUG;
+        break;
+    case MAV_SEVERITY_INFO:
+        level = UAVCAN_PROTOCOL_DEBUG_LOGLEVEL_INFO;
+        break;
+    case MAV_SEVERITY_NOTICE:
+    case MAV_SEVERITY_WARNING:
+        level = UAVCAN_PROTOCOL_DEBUG_LOGLEVEL_WARNING;
+        break;
+    case MAV_SEVERITY_ERROR:
+    case MAV_SEVERITY_CRITICAL:
+    case MAV_SEVERITY_ALERT:
+    case MAV_SEVERITY_EMERGENCY:
+        level = UAVCAN_PROTOCOL_DEBUG_LOGLEVEL_ERROR;
+        break;
+    }
+
 #if HAL_PERIPH_SUPPORT_LONG_CAN_PRINTF
     const uint8_t packet_count_max = 4; // how many packets we're willing to break up an over-sized string into
     const uint8_t packet_data_max = 90; // max single debug string length = sizeof(uavcan_protocol_debug_LogMessage.text.data)
     uint8_t buffer_data[packet_count_max*packet_data_max] {};
 
-    va_list ap;
-    va_start(ap, fmt);
     // strip off any negative return errors by treating result as 0
     uint32_t char_count = MAX(vsnprintf((char*)buffer_data, sizeof(buffer_data), fmt, ap), 0);
-    va_end(ap);
 
     // send multiple uavcan_protocol_debug_LogMessage packets if the fmt string is too long.
     uint16_t buffer_offset = 0;
     for (uint8_t i=0; i<packet_count_max && char_count > 0; i++) {
         uavcan_protocol_debug_LogMessage pkt {};
+        pkt.level.value = level;
         pkt.text.len = MIN(char_count, sizeof(pkt.text.data));
         char_count -= pkt.text.len;
 
@@ -1863,10 +1907,8 @@ void can_printf(const char *fmt, ...)
 #else
     uavcan_protocol_debug_LogMessage pkt {};
     uint8_t buffer[UAVCAN_PROTOCOL_DEBUG_LOGMESSAGE_MAX_SIZE] {};
-    va_list ap;
-    va_start(ap, fmt);
     uint32_t n = vsnprintf((char*)pkt.text.data, sizeof(pkt.text.data), fmt, ap);
-    va_end(ap);
+    pkt.level.value = level;
     pkt.text.len = MIN(n, sizeof(pkt.text.data));
 
     uint32_t len = uavcan_protocol_debug_LogMessage_encode(&pkt, buffer, !periph.canfdout());
@@ -1878,4 +1920,22 @@ void can_printf(const char *fmt, ...)
                             len);
 
 #endif
+}
+
+// printf to CAN LogMessage for debugging, with severity
+void can_printf_severity(uint8_t severity, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    can_vprintf(severity, fmt, ap);
+    va_end(ap);
+}
+
+// printf to CAN LogMessage for debugging, with DEBUG level
+void can_printf(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    can_vprintf(MAV_SEVERITY_DEBUG, fmt, ap);
+    va_end(ap);
 }

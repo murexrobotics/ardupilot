@@ -504,6 +504,7 @@ void AP_IOMCU::write_log()
     uint32_t now = AP_HAL::millis();
     if (now - last_log_ms >= 1000U) {
         last_log_ms = now;
+#if HAL_LOGGING_ENABLED
         if (AP_Logger::get_singleton()) {
 // @LoggerMessage: IOMC
 // @Description: IOMCU diagnostic information
@@ -525,6 +526,7 @@ void AP_IOMCU::write_log()
                                reg_status.num_errors,
                                num_delayed);
         }
+#endif  // HAL_LOGGING_ENABLED
 #if IOMCU_DEBUG_ENABLE
         static uint32_t last_io_print;
         if (now - last_io_print >= 5000) {
@@ -547,6 +549,7 @@ void AP_IOMCU::write_log()
 #endif // IOMCU_DEBUG_ENABLE
     }
 }
+
 
 /*
   read servo output values
@@ -691,7 +694,10 @@ bool AP_IOMCU::read_registers(uint8_t page, uint8_t offset, uint8_t count, uint1
 */
 bool AP_IOMCU::write_registers(uint8_t page, uint8_t offset, uint8_t count, const uint16_t *regs)
 {
-    while (count > PKT_MAX_REGS) {
+    // The use of offset is very, very evil - it can either be a command within the page
+    // or a genuine offset, offsets within PAGE_SETUP are assumed to be commands, otherwise to be an
+    // actual offset
+    while (page != PAGE_SETUP && count > PKT_MAX_REGS) {
         if (!write_registers(page, offset, PKT_MAX_REGS, regs)) {
             return false;
         }

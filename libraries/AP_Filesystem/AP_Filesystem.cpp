@@ -64,6 +64,7 @@ const AP_Filesystem::Backend AP_Filesystem::backends[] = {
     { nullptr, fs_local },
 #if AP_FILESYSTEM_ROMFS_ENABLED
     { "@ROMFS/", fs_romfs },
+    { "@ROMFS", fs_romfs },
 #endif
 #if AP_FILESYSTEM_PARAM_ENABLED
     { "@PARAM/", fs_param },
@@ -290,6 +291,9 @@ bool AP_Filesystem::fgets(char *buf, uint8_t buflen, int fd)
 // run crc32 over file with given name, returns true if successful
 bool AP_Filesystem::crc32(const char *fname, uint32_t& checksum)
 {
+    // Ensure value is initialized
+    checksum = 0;
+
     // Open file in readonly mode
     int fd = open(fname, O_RDONLY);
     if (fd == -1) {

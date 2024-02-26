@@ -156,6 +156,8 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
     if (!setup_complete) {
         return false;
     }
+    // ensure we own the uart
+    uart->begin(0);
     uint32_t n = uart->available();
     if (n == 0) {
         return false;
@@ -436,6 +438,8 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
     if (GOT_MSG(ACCEL_DATA_HR) &&
         GOT_MSG(GYRO_DATA_HR)) {
         AP::ins().handle_external(ins_data);
+        state.accel = ins_data.accel;
+        state.gyro = ins_data.gyro;
     }
     if (GOT_MSG(GPS_INS_TIME_MS) &&
         GOT_MSG(NUM_SATS) &&
@@ -462,13 +466,17 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
             last_gps_ms = now_ms;
         }
     }
+#if AP_BARO_EXTERNALAHRS_ENABLED
     if (GOT_MSG(BARO_DATA) &&
         GOT_MSG(TEMPERATURE)) {
         AP::baro().handle_external(baro_data);
     }
+#endif
+    #if AP_COMPASS_EXTERNALAHRS_ENABLED
     if (GOT_MSG(MAG_DATA)) {
         AP::compass().handle_external(mag_data);
     }
+#endif
 #if AP_AIRSPEED_EXTERNAL_ENABLED && (APM_BUILD_COPTER_OR_HELI || APM_BUILD_TYPE(APM_BUILD_ArduPlane))
     // only on plane and copter as others do not link AP_Airspeed
     if (GOT_MSG(DIFFERENTIAL_PRESSURE) &&
@@ -481,6 +489,7 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
 #endif // AP_AIRSPEED_EXTERNAL_ENABLED
     buffer_ofs = 0;
 
+#if HAL_LOGGING_ENABLED
     if (GOT_MSG(POSITION) &&
         GOT_MSG(ORIENTATION_ANGLES) &&
         GOT_MSG(VELOCITIES)) {
@@ -556,7 +565,8 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
                                     state2.true_airspeed,
                                     state2.wind_speed.x, state2.wind_speed.y, state2.wind_speed.z);
     }
-        
+#endif  // HAL_LOGGING_ENABLED
+
     return true;
 }
 

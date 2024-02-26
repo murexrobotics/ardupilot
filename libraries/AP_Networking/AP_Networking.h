@@ -26,6 +26,7 @@ class AP_Networking
 public:
     friend class AP_Networking_Backend;
     friend class AP_Networking_ChibiOS;
+    friend class AP_Networking_PPP;
     friend class AP_Vehicle;
     friend class Networking_Periph;
 
@@ -45,6 +46,11 @@ public:
         return singleton;
     }
 
+    HAL_Semaphore &get_semaphore(void)
+    {
+        return sem;
+    }
+    
     // Networking interface is enabled and initialized
     bool is_healthy() const
     {
@@ -86,15 +92,6 @@ public:
 #endif
     }
 
-    /*
-      returns a null terminated string of the active IP address. Example: "192.168.12.13"
-      Note that the returned
-    */
-    const char *get_ip_active_str() const
-    {
-        return convert_ip_to_str(get_ip_active());
-    }
-
     // sets the user-parameter static IP address from a 32bit value
     void set_ip_param(const uint32_t ip)
     {
@@ -117,29 +114,6 @@ public:
 #endif
     }
 
-    // returns a null terminated string of the active Netmask address. Example: "192.168.12.13"
-    const char *get_netmask_active_str()
-    {
-        return convert_ip_to_str(get_netmask_active());
-    }
-
-    const char *get_netmask_param_str()
-    {
-        return convert_ip_to_str(get_netmask_param());
-    }
-
-    void set_netmask_param_str(const char* nm_str)
-    {
-        set_netmask_param(convert_str_to_ip((char*)nm_str));
-    }
-
-    void set_netmask_param(const uint32_t nm)
-    {
-#if AP_NETWORKING_CONTROLS_HOST_IP_SETTINGS_ENABLED
-        param.netmask.set(convert_netmask_ip_to_bitcount(nm));
-#endif
-    }
-
     uint32_t get_gateway_active() const;
 
     uint32_t get_gateway_param() const
@@ -152,21 +126,6 @@ public:
 #endif
     }
 
-    const char *get_gateway_active_str()
-    {
-        return convert_ip_to_str(get_gateway_active());
-    }
-
-    const char *get_gateway_param_str()
-    {
-        return convert_ip_to_str(get_gateway_param());
-    }
-
-    void set_gateway_param_str(const char* gw_str)
-    {
-        set_gateway_param(convert_str_to_ip((char*)gw_str));
-    }
-
     void set_gateway_param(const uint32_t gw)
     {
 #if AP_NETWORKING_CONTROLS_HOST_IP_SETTINGS_ENABLED
@@ -177,13 +136,12 @@ public:
     // wait in a thread for network startup
     void startup_wait(void) const;
 
-    // helper functions to convert between 32bit IP addresses and null terminated strings and back
-    static uint32_t convert_str_to_ip(const char* ip_str);
-    static const char* convert_ip_to_str(uint32_t ip);
-
     // convert string to ethernet mac address
     static bool convert_str_to_macaddr(const char *mac_str, uint8_t addr[6]);
 
+    // address to string using a static return buffer for scripting
+    static const char *address_to_str(uint32_t addr);
+    
     // helper functions to convert between 32bit Netmask and counting consecutive bits and back
     static uint32_t convert_netmask_bitcount_to_ip(const uint32_t netmask_bitcount);
     static uint8_t convert_netmask_ip_to_bitcount(const uint32_t netmask_ip);
@@ -194,6 +152,13 @@ public:
     bool sendfile(SocketAPM *sock, int fd);
 
     static const struct AP_Param::GroupInfo var_info[];
+
+    enum class OPTION {
+        PPP_ETHERNET_GATEWAY=(1U<<0),
+    };
+    bool option_is_set(OPTION option) const {
+        return (param.options.get() & int32_t(option)) != 0;
+    }
 
 private:
     static AP_Networking *singleton;
@@ -218,9 +183,17 @@ private:
         AP_Int32 tests;
         AP_Networking_IPV4 test_ipaddr{AP_NETWORKING_TEST_IP};
 #endif
+
+#if AP_NETWORKING_PPP_GATEWAY_ENABLED
+        AP_Networking_IPV4 remote_ppp_ip{AP_NETWORKING_REMOTE_PPP_IP};
+#endif
     } param;
 
     AP_Networking_Backend *backend;
+
+#if AP_NETWORKING_PPP_GATEWAY_ENABLED
+    AP_Networking_Backend *backend_PPP;
+#endif
 
     HAL_Semaphore sem;
 
@@ -232,6 +205,7 @@ private:
         TCP_SERVER = 4,
     };
 
+#if AP_NETWORKING_REGISTER_PORT_ENABLED
     // class for NET_Pn_* parameters
     class Port : public AP_SerialManager::RegisteredPort {
     public:
@@ -297,6 +271,7 @@ private:
 
         HAL_Semaphore sem;
     };
+#endif // AP_NETWORKING_REGISTER_PORT_ENABLED
 
 private:
     uint32_t announce_ms;
@@ -313,8 +288,10 @@ private:
     void test_TCP_discard(void);
 #endif // AP_NETWORKING_TESTS_ENABLED
 
+#if AP_NETWORKING_REGISTER_PORT_ENABLED
     // ports for registration with serial manager
     Port ports[AP_NETWORKING_NUM_PORTS];
+#endif
 
     // support for sendfile()
     struct SendFile {
@@ -324,7 +301,9 @@ private:
     } sendfiles[AP_NETWORKING_NUM_SENDFILES];
 
     uint8_t *sendfile_buf;
+    uint32_t sendfile_bufsize;
     void sendfile_check(void);
+    bool sendfile_thread_started;
 
     void ports_init(void);
 };

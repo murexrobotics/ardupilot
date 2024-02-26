@@ -158,13 +158,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     AP_GROUPINFO("_AUTO_SWITCH", 3, AP_GPS, _auto_switch, (int8_t)GPSAutoSwitch::USE_BEST),
 #endif
 
-    // @Param: _MIN_DGPS
-    // @DisplayName: Minimum Lock Type Accepted for DGPS
-    // @Description: Sets the minimum type of differential GPS corrections required before allowing to switch into DGPS mode.
-    // @Values: 0:Any,50:FloatRTK,100:IntegerRTK
-    // @User: Advanced
-    // @RebootRequired: True
-    AP_GROUPINFO("_MIN_DGPS", 4, AP_GPS, _min_dgps, 100),
+    // 4 was _MIN_GPS, removed Feb 2024
 
     // @Param: _SBAS_MODE
     // @DisplayName: SBAS Mode
@@ -347,7 +341,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Param: _DRV_OPTIONS
     // @DisplayName: driver options
     // @Description: Additional backend specific options
-    // @Bitmask: 0:Use UART2 for moving baseline on ublox,1:Use base station for GPS yaw on SBF,2:Use baudrate 115200,3:Use dedicated CAN port b/w GPSes for moving baseline,4:Use ellipsoid height instead of AMSL
+    // @Bitmask: 0:Use UART2 for moving baseline on ublox,1:Use base station for GPS yaw on SBF,2:Use baudrate 115200,3:Use dedicated CAN port b/w GPSes for moving baseline,4:Use ellipsoid height instead of AMSL, 5:Override GPS satellite health of L5 band from L1 health
     // @User: Advanced
     AP_GROUPINFO("_DRV_OPTIONS", 22, AP_GPS, _driver_options, 0),
 
@@ -999,6 +993,13 @@ void AP_GPS::update_instance(uint8_t instance)
             tnow = state[instance].last_corrected_gps_time_us/1000U;
             state[instance].corrected_timestamp_updated = false;
         }
+
+        // announce the GPS type once
+        if (!state[instance].announced_detection) {
+            state[instance].announced_detection = true;
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "GPS %d: detected %s", instance + 1, drivers[instance]->name());
+        }
+
         // delta will only be correct after parsing two messages
         timing[instance].delta_time_ms = tnow - timing[instance].last_message_time_ms;
         timing[instance].last_message_time_ms = tnow;
@@ -1632,7 +1633,7 @@ void AP_GPS::handle_gps_rtcm_fragment(uint8_t flags, const uint8_t *data, uint8_
         // we have one or more partial fragments already received
         // which conflict with the new fragment, discard previous fragments
         rtcm_buffer->fragment_count = 0;
-        rtcm_stats.fragments_discarded += rtcm_buffer->fragments_received;
+        rtcm_stats.fragments_discarded += __builtin_popcount(rtcm_buffer->fragments_received);
         rtcm_buffer->fragments_received = 0;
     }
 
@@ -1661,7 +1662,7 @@ void AP_GPS::handle_gps_rtcm_fragment(uint8_t flags, const uint8_t *data, uint8_
     if (rtcm_buffer->fragment_count != 0 &&
         rtcm_buffer->fragments_received == (1U << rtcm_buffer->fragment_count) - 1) {
         // we have them all, inject
-        rtcm_stats.fragments_used += rtcm_buffer->fragments_received;
+        rtcm_stats.fragments_used += __builtin_popcount(rtcm_buffer->fragments_received);
         inject_data(rtcm_buffer->buffer, rtcm_buffer->total_length);
         rtcm_buffer->fragment_count = 0;
         rtcm_buffer->fragments_received = 0;
@@ -2254,6 +2255,7 @@ bool AP_GPS::get_undulation(uint8_t instance, float &undulation) const
     return true;
 }
 
+#if HAL_LOGGING_ENABLED
 // Logging support:
 // Write an GPS packet
 void AP_GPS::Write_GPS(uint8_t i)
@@ -2310,6 +2312,7 @@ void AP_GPS::Write_GPS(uint8_t i)
     };
     AP::logger().WriteBlock(&pkt2, sizeof(pkt2));
 }
+#endif
 
 /*
   get GPS based yaw

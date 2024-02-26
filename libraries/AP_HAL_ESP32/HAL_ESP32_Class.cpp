@@ -28,6 +28,9 @@
 #include "Storage.h"
 #include "AnalogIn.h"
 #include "Util.h"
+#if AP_SIM_ENABLED
+#include <AP_HAL/SIMState.h>
+#endif
 
 
 static ESP32::UARTDriver cons(0);
@@ -49,7 +52,9 @@ static Empty::UARTDriver serial7Driver;
 static Empty::UARTDriver serial8Driver;
 static Empty::UARTDriver serial9Driver;
 
+#if HAL_WITH_DSP
 static Empty::DSP dspDriver;
+#endif
 
 static ESP32::I2CDeviceManager i2cDeviceManager;
 static ESP32::SPIDeviceManager spiDeviceManager;
@@ -58,14 +63,26 @@ static ESP32::AnalogIn analogIn;
 #else
 static Empty::AnalogIn analogIn;
 #endif
+#ifdef HAL_USE_EMPTY_STORAGE
+static Empty::Storage storageDriver;
+#else
 static ESP32::Storage storageDriver;
+#endif
 static Empty::GPIO gpioDriver;
+#if AP_SIM_ENABLED
+static Empty::RCOutput rcoutDriver;
+#else
 static ESP32::RCOutput rcoutDriver;
+#endif
 static ESP32::RCInput rcinDriver;
 static ESP32::Scheduler schedulerInstance;
 static ESP32::Util utilInstance;
 static Empty::OpticalFlow opticalFlowDriver;
 static Empty::Flash flashDriver;
+
+#if AP_SIM_ENABLED
+static AP_HAL::SIMState xsimstate;
+#endif
 
 extern const AP_HAL::HAL& hal;
 
@@ -94,7 +111,12 @@ HAL_ESP32::HAL_ESP32() :
         &utilInstance,
         &opticalFlowDriver,
         &flashDriver,
+#if AP_SIM_ENABLED
+        &xsimstate,
+#endif
+#if HAL_WITH_DSP
         &dspDriver,
+#endif
         nullptr
     )
 {}

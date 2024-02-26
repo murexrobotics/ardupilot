@@ -1,3 +1,7 @@
+#include "AP_Mission_config.h"
+
+#if AP_MISSION_ENABLED
+
 #include "AP_Mission.h"
 
 #include <GCS_MAVLink/GCS.h>
@@ -34,21 +38,18 @@ bool AP_Mission::start_command_do_aux_function(const AP_Mission::Mission_Command
 #if AP_GRIPPER_ENABLED
 bool AP_Mission::start_command_do_gripper(const AP_Mission::Mission_Command& cmd)
 {
-    AP_Gripper *gripper = AP::gripper();
-    if (gripper == nullptr) {
-        return false;
-    }
+    AP_Gripper &gripper = AP::gripper();
 
     // Note: we ignore the gripper num parameter because we only
     // support one gripper
     switch (cmd.content.gripper.action) {
     case GRIPPER_ACTION_RELEASE:
-        gripper->release();
+        gripper.release();
         // Log_Write_Event(DATA_GRIPPER_RELEASE);
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Gripper Released");
         return true;
     case GRIPPER_ACTION_GRAB:
-        gripper->grab();
+        gripper.grab();
         // Log_Write_Event(DATA_GRIPPER_GRAB);
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Gripper Grabbed");
         return true;
@@ -332,3 +333,5 @@ bool AP_Mission::start_command_do_gimbal_manager_pitchyaw(const AP_Mission::Miss
     // if we got this far then message is not handled
     return false;
 }
+
+#endif  // AP_MISSION_ENABLED

@@ -1340,7 +1340,7 @@ bool AP_InertialSensor::_calculate_trim(const Vector3f &accel_sample, Vector3f &
     if (view != nullptr) {
         // Use pitch to guess which axis the user is trying to trim
         // 5 deg buffer to favor normal AHRS and avoid floating point funny business
-        if (fabsf(view->pitch) < (fabsf(AP::ahrs().pitch)+radians(5)) ) {
+        if (fabsf(view->pitch) < (fabsf(AP::ahrs().get_pitch())+radians(5)) ) {
             // user is trying to calibrate view
             rotation = view->get_rotation();
             if (!is_zero(view->get_pitch_trim())) {
@@ -1421,6 +1421,35 @@ bool AP_InertialSensor::get_gyro_health_all(void) const
     return (get_gyro_count() > 0);
 }
 
+// threshold in degrees/s to be consistent, consistent_time_sec duration for which
+// gyros need to be consistent to be considered consistent
+bool AP_InertialSensor::gyros_consistent(uint8_t threshold) const
+{
+     
+    const uint8_t gyro_count = get_gyro_count();
+    if (gyro_count <= 1) {
+        return true;
+    }
+
+    const Vector3f &prime_gyro_vec = get_gyro();
+    for(uint8_t i=0; i<gyro_count; i++) {
+        if (!use_gyro(i)) {
+            continue;
+        }
+        // get next gyro vector
+        const Vector3f &gyro_vec = get_gyro(i);
+        const Vector3f vec_diff = gyro_vec - prime_gyro_vec;
+        // allow for up to threshold degrees/s difference
+        if (vec_diff.length() > radians(threshold)) {
+            // this sensor disagrees with the primary sensor, so
+            // gyros are inconsistent:
+            return false;
+        }
+    }
+
+    return true;
+}
+
 // gyro_calibration_ok_all - returns true if all gyros were calibrated successfully
 bool AP_InertialSensor::gyro_calibrated_ok_all() const
 {
@@ -1460,7 +1489,46 @@ bool AP_InertialSensor::get_accel_health_all(void) const
     return (get_accel_count() > 0);
 }
 
-#if HAL_GCS_ENABLED
+// accel_error_threshold in m/s/s to be consistent
+bool AP_InertialSensor::accels_consistent(float accel_error_threshold) const
+{
+    const uint8_t accel_count = get_accel_count();
+    if (accel_count <= 1) {
+        return true;
+    }
+
+    const Vector3f &prime_accel_vec = get_accel();
+    for(uint8_t i=0; i<accel_count; i++) {
+        if (!use_accel(i)) {
+            continue;
+        }
+        // get next accel vector
+        const Vector3f &accel_vec = get_accel(i);
+        Vector3f vec_diff = accel_vec - prime_accel_vec;
+        // allow for user-defined difference, threshold m/s/s. Has to pass in last consistent_time_sec seconds
+        float threshold = accel_error_threshold;
+        if (i >= 2) {
+            /*
+              we allow for a higher threshold for IMU3 as it
+              runs at a different temperature to IMU1/IMU2,
+              and is not used for accel data in the EKF
+            */
+            threshold *= 3;
+        }
+
+        // EKF is less sensitive to Z-axis error
+        vec_diff.z *= 0.5f;
+
+        if (vec_diff.length() > threshold) {
+            // this sensor disagrees with the primary sensor, so
+            // accels are inconsistent:
+            return false;
+        }
+    }
+    return true;
+}
+
+#if HAL_GCS_ENABLED && AP_AHRS_ENABLED
 /*
   calculate the trim_roll and trim_pitch. This is used for redoing the
   trim without needing a full accel cal
@@ -1521,6 +1589,7 @@ MAV_RESULT AP_InertialSensor::calibrate_trim()
 
     // reset ahrs's trim to suggested values from calibration routine
     ahrs.set_trim(trim_rad);
+
     last_accel_cal_ms = AP_HAL::millis();
     _trimming_accel = false;
     return MAV_RESULT_ACCEPTED;
@@ -1530,7 +1599,7 @@ failed:
     _trimming_accel = false;
     return MAV_RESULT_FAILED;
 }
-#endif  // HAL_GCS_ENABLED
+#endif  // HAL_GCS_ENABLED && AP_AHRS_ENABLED
 
 /*
   check if the accelerometers are calibrated in 3D and that current number of accels matched number when calibrated
@@ -2408,7 +2477,9 @@ bool AP_InertialSensor::calibrate_gyros()
     if (!gyro_calibrated_ok_all()) {
         return false;
     }
+#if AP_AHRS_ENABLED
     AP::ahrs().reset_gyro_drift();
+#endif
     return true;
 }
 
@@ -2550,8 +2621,10 @@ MAV_RESULT AP_InertialSensor::simple_accel_cal()
 #endif
         }
 
+#if AP_AHRS_ENABLED
         // force trim to zero
         AP::ahrs().set_trim(Vector3f(0, 0, 0));
+#endif
     } else {
         DEV_PRINTF("\nFAILED\n");
         // restore old values
@@ -2572,8 +2645,10 @@ MAV_RESULT AP_InertialSensor::simple_accel_cal()
         update();
     }
 
+#if AP_AHRS_ENABLED
     // and reset state estimators
     AP::ahrs().reset();
+#endif
 
     // stop flashing leds
     AP_Notify::flags.initialising = false;

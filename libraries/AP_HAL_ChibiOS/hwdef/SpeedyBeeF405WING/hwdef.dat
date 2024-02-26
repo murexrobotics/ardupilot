@@ -169,17 +169,7 @@ PC13 PINIO1 OUTPUT GPIO(81) LOW
 
 define STM32_PWM_USE_ADVANCED TRUE
 
-# reduce max size of embedded params for apj_tool.py
-define AP_PARAM_MAX_EMBEDDED_PARAM 1024
 define HAL_WITH_DSP FALSE
-
-# save some flash
-
-# disable SMBUS and fuel battery monitors to save flash
-define AP_BATTMON_SMBUS_ENABLE 0
-define AP_BATTMON_FUEL_ENABLE 0
-define AP_BATTMON_SYNTHETIC_CURRENT_ENABLED 0
-define HAL_BATTMON_INA2XX_ENABLED 0
 
 # disable parachute and sprayer to save flash
 define HAL_PARACHUTE_ENABLED 0

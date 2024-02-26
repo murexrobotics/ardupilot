@@ -15,22 +15,6 @@ static void failsafe_check_static()
 
 void Copter::init_ardupilot()
 {
-
-#if STATS_ENABLED == ENABLED
-    // initialise stats module
-    g2.stats.init();
-#endif
-
-    BoardConfig.init();
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
-    can_mgr.init();
-#endif
-
-    // init cargo gripper
-#if AP_GRIPPER_ENABLED
-    g2.gripper.init();
-#endif
-
     // init winch
 #if AP_WINCH_ENABLED
     g2.winch.init();
@@ -53,10 +37,6 @@ void Copter::init_ardupilot()
 
 #if OSD_ENABLED == ENABLED
     osd.init();
-#endif
-
-#if LOGGING_ENABLED == ENABLED
-    log_init();
 #endif
 
     // update motor interlock state
@@ -183,14 +163,12 @@ void Copter::init_ardupilot()
     g2.smart_rtl.init();
 #endif
 
+#if HAL_LOGGING_ENABLED
     // initialise AP_Logger library
     logger.setVehicle_Startup_Writer(FUNCTOR_BIND(&copter, &Copter::Log_Write_Vehicle_Startup_Messages, void));
+#endif
 
     startup_INS_ground();
-
-#if AP_SCRIPTING_ENABLED
-    g2.scripting.init();
-#endif // AP_SCRIPTING_ENABLED
 
 #if AC_CUSTOMCONTROL_MULTI_ENABLED == ENABLED
     custom_control.init();
@@ -207,11 +185,15 @@ void Copter::init_ardupilot()
 
     motors->output_min();  // output lowest possible value to motors
 
-    // attempt to set the intial_mode, else set to STABILIZE
+    // attempt to set the initial_mode, else set to STABILIZE
     if (!set_mode((enum Mode::Number)g.initial_mode.get(), ModeReason::INITIALISED)) {
         // set mode to STABILIZE will trigger mode change notification to pilot
         set_mode(Mode::Number::STABILIZE, ModeReason::UNAVAILABLE);
     }
+
+    pos_variance_filt.set_cutoff_frequency(g2.fs_ekf_filt_hz);
+    vel_variance_filt.set_cutoff_frequency(g2.fs_ekf_filt_hz);
+    hgt_variance_filt.set_cutoff_frequency(g2.fs_ekf_filt_hz);
 
     // flag that initialisation has completed
     ap.initialised = true;
@@ -352,18 +334,16 @@ void Copter::update_auto_armed()
     }
 }
 
+#if HAL_LOGGING_ENABLED
 /*
   should we log a message type now?
  */
 bool Copter::should_log(uint32_t mask)
 {
-#if LOGGING_ENABLED == ENABLED
     ap.logging_started = logger.logging_started();
     return logger.should_log(mask);
-#else
-    return false;
-#endif
 }
+#endif
 
 /*
   allocate the motors class

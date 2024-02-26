@@ -499,7 +499,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Param: GPS_TYPE
     // @DisplayName: GPS 1 type
     // @Description: Sets the type of simulation used for GPS 1
-    // @Values: 0:None, 1:UBlox, 5:NMEA, 6:SBP, 7:File, 8:Nova, 9:SBP, 10:Trimble, 19:MSP
+    // @Values: 0:None, 1:UBlox, 5:NMEA, 6:SBP, 7:File, 8:Nova, 9:SBP2, 11:Trimble, 19:MSP
     // @User: Advanced
     AP_GROUPINFO("GPS_TYPE",       3, SIM,  gps_type[0],  GPS::Type::UBLOX),
     // @Param: GPS_BYTELOSS
@@ -1169,6 +1169,7 @@ void SIM::sim_state_send(mavlink_channel_t chan) const
             (int32_t)(state.longitude*1.0e7));
 }
 
+#if HAL_LOGGING_ENABLED
 /* report SITL state to AP_Logger */
 void SIM::Log_Write_SIMSTATE()
 {
@@ -1196,6 +1197,7 @@ void SIM::Log_Write_SIMSTATE()
     };
     AP::logger().WriteBlock(&pkt, sizeof(pkt));
 }
+#endif
 
 /*
  convert a set of roll rates from earth frame to body frame

@@ -18,7 +18,7 @@
 
 #include <AP_Param/AP_Param.h>
 #include <SITL/SIM_JSBSim.h>
-#include <AP_HAL/utility/Socket.h>
+#include <AP_HAL/utility/Socket_native.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -221,6 +221,11 @@ SITL::SerialDevice *SITL_State_Common::create_serial_sim(const char *name, const
         }
         sitl_model->set_adsb(adsb);
         return sagetech_mxs;
+#endif
+#if AP_SIM_LOWEHEISER_ENABLED
+    } else if (streq(name, "loweheiser")) {
+        sitl_model->set_loweheiser(&_sitl->loweheiser_sim);
+        return &_sitl->loweheiser_sim;
 #endif
 #if !defined(HAL_BUILD_AP_PERIPH)
     } else if (streq(name, "richenpower")) {

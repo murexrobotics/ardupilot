@@ -233,12 +233,12 @@ bool AP_Arming_Copter::parameter_checks(bool display_failure)
 
         // Inverted flight feature disabled for Heli Single and Dual frames
         if (copter.g2.frame_class.get() != AP_Motors::MOTOR_FRAME_HELI_QUAD &&
-            rc().find_channel_for_option(RC_Channel::aux_func_t::INVERTED) != nullptr) {
+            rc().find_channel_for_option(RC_Channel::AUX_FUNC::INVERTED) != nullptr) {
             check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Inverted flight option not supported");
             return false;
         }
         // Ensure an Aux Channel is configured for motor interlock
-        if (rc().find_channel_for_option(RC_Channel::aux_func_t::MOTOR_INTERLOCK) == nullptr) {
+        if (rc().find_channel_for_option(RC_Channel::AUX_FUNC::MOTOR_INTERLOCK) == nullptr) {
             check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Motor Interlock not configured");
             return false;
         }
@@ -398,10 +398,10 @@ bool AP_Arming_Copter::pre_arm_ekf_attitude_check()
     return filt_status.flags.attitude;
 }
 
+#if HAL_PROXIMITY_ENABLED
 // check nothing is too close to vehicle
 bool AP_Arming_Copter::proximity_checks(bool display_failure) const
 {
-#if HAL_PROXIMITY_ENABLED
 
     if (!AP_Arming::proximity_checks(display_failure)) {
         return false;
@@ -425,9 +425,9 @@ bool AP_Arming_Copter::proximity_checks(bool display_failure) const
     }
 #endif
 
-#endif
     return true;
 }
+#endif  // HAL_PROXIMITY_ENABLED
 
 // performs mandatory gps checks.  returns true if passed
 bool AP_Arming_Copter::mandatory_gps_checks(bool display_failure)
@@ -694,8 +694,10 @@ bool AP_Arming_Copter::arm(const AP_Arming::Method method, const bool do_arming_
         return false;
     }
 
+#if HAL_LOGGING_ENABLED
     // let logger know that we're armed (it may open logs e.g.)
     AP::logger().set_vehicle_armed(true);
+#endif
 
     // disable cpu failsafe because initialising everything takes a while
     copter.failsafe_disable();
@@ -722,7 +724,7 @@ bool AP_Arming_Copter::arm(const AP_Arming::Method method, const bool do_arming_
     if (!ahrs.home_is_set()) {
         // Reset EKF altitude if home hasn't been set yet (we use EKF altitude as substitute for alt above home)
         ahrs.resetHeightDatum();
-        AP::logger().Write_Event(LogEvent::EKF_ALT_RESET);
+        LOGGER_WRITE_EVENT(LogEvent::EKF_ALT_RESET);
 
         // we have reset height, so arming height is zero
         copter.arming_altitude_m = 0;
@@ -755,8 +757,10 @@ bool AP_Arming_Copter::arm(const AP_Arming::Method method, const bool do_arming_
     // finally actually arm the motors
     copter.motors->armed(true);
 
+#if HAL_LOGGING_ENABLED
     // log flight mode in case it was changed while vehicle was disarmed
     AP::logger().Write_Mode((uint8_t)copter.flightmode->mode_number(), copter.control_mode_reason);
+#endif
 
     // re-enable failsafe
     copter.failsafe_enable();
@@ -837,7 +841,9 @@ bool AP_Arming_Copter::disarm(const AP_Arming::Method method, bool do_disarm_che
     copter.mode_auto.mission.reset();
 #endif
 
+#if HAL_LOGGING_ENABLED
     AP::logger().set_vehicle_armed(false);
+#endif
 
     hal.util->set_soft_armed(false);
 

@@ -24,8 +24,9 @@ const AP_Param::GroupInfo AP_Parachute::var_info[] = {
 
     // @Param: TYPE
     // @DisplayName: Parachute release mechanism type (relay or servo)
-    // @Description: Parachute release mechanism type (relay or servo)
-    // @Values: 0:First Relay,1:Second Relay,2:Third Relay,3:Fourth Relay,10:Servo
+    // @Description: Parachute release mechanism type (relay number in versions prior to 4.5, or servo). Values 0-3 all are relay. Relay number used for release is set by RELAYx_FUNCTION in 4.5 or later. 
+    // @Values: 0: Relay,10:Servo 
+
     // @User: Standard
     AP_GROUPINFO("TYPE", 1, AP_Parachute, _release_type, AP_PARACHUTE_TRIGGER_TYPE_RELAY_0),
 
@@ -92,7 +93,7 @@ void AP_Parachute::enabled(bool on_off)
     // clear release_time
     _release_time = 0;
 
-    AP::logger().Write_Event(_enabled ? LogEvent::PARACHUTE_ENABLED : LogEvent::PARACHUTE_DISABLED);
+    LOGGER_WRITE_EVENT(_enabled ? LogEvent::PARACHUTE_ENABLED : LogEvent::PARACHUTE_DISABLED);
 }
 
 /// release - release parachute
@@ -104,7 +105,7 @@ void AP_Parachute::release()
     }
 
     GCS_SEND_TEXT(MAV_SEVERITY_INFO,"Parachute: Released");
-    AP::logger().Write_Event(LogEvent::PARACHUTE_RELEASED);
+    LOGGER_WRITE_EVENT(LogEvent::PARACHUTE_RELEASED);
 
     // set release time to current system time
     if (_release_time == 0) {
@@ -240,7 +241,17 @@ bool AP_Parachute::arming_checks(size_t buflen, char *buffer) const
 bool AP_Parachute::get_legacy_relay_index(int8_t &index) const
 {
     // PARAMETER_CONVERSION - Added: Dec-2023
-    if (!enabled() || (_release_type > AP_PARACHUTE_TRIGGER_TYPE_RELAY_3)) {
+    if (_release_type > AP_PARACHUTE_TRIGGER_TYPE_RELAY_3) {
+        // Not relay type
+        return false;
+    }
+    if (!enabled() && !_enabled.configured()) {
+        // Disabled and parameter never changed
+        // Copter manual parachute release enables and deploys in one step
+        // This means it is possible for parachute to still function correctly if disabled at boot
+        // Checking if the enable param is configured means the user must have setup chute at some point
+        // this means relay parm conversion will be done if parachute has ever been enabled
+        // Parachute has priority in relay param conversion, so this might mean we overwrite some other function
         return false;
     }
     index = _release_type; 

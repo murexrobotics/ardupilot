@@ -107,6 +107,7 @@ const AP_Param::GroupInfo RC_Channel::var_info[] = {
     // @Param: OPTION
     // @DisplayName: RC input option
     // @Description: Function assigned to this RC channel
+    // @SortValues: AlphabeticalZeroAtTop
     // @Values{Copter, Rover, Plane, Blimp}: 0:Do Nothing
     // @Values{Copter}: 2:FLIP Mode
     // @Values{Copter}: 3:Simple Mode
@@ -131,7 +132,7 @@ const AP_Param::GroupInfo RC_Channel::var_info[] = {
     // @Values{Copter}: 25:AttCon Feed Forward
     // @Values{Copter}: 26:AttCon Accel Limits
     // @Values{Copter, Rover, Plane}: 27:Retract Mount1
-    // @Values{Copter, Rover, Plane}: 28:Relay On/Off
+    // @Values{Copter, Rover, Plane}: 28:Relay1 On/Off
     // @Values{Copter, Plane}: 29:Landing Gear
     // @Values{Copter}: 30:Lost Copter Sound
     // @Values{Rover}: 30:Lost Rover Sound
@@ -616,7 +617,7 @@ bool RC_Channel::debounce_completed(int8_t position)
 //
 
 // init_aux_switch_function - initialize aux functions
-void RC_Channel::init_aux_function(const aux_func_t ch_option, const AuxSwitchPos ch_flag)
+void RC_Channel::init_aux_function(const AUX_FUNC ch_option, const AuxSwitchPos ch_flag)
 {
     // init channel options
     switch (ch_option) {
@@ -804,7 +805,7 @@ const char *RC_Channel::string_for_aux_pos(AuxSwitchPos pos) const
  */
 bool RC_Channel::read_aux()
 {
-    const aux_func_t _option = (aux_func_t)option.get();
+    const AUX_FUNC _option = (AUX_FUNC)option.get();
     if (_option == AUX_FUNC::DO_NOTHING) {
         // may wish to add special cases for other "AUXSW" things
         // here e.g. RCMAP_ROLL etc once they become options
@@ -877,14 +878,14 @@ void RC_Channel::do_aux_function_avoid_adsb(const AuxSwitchPos ch_flag)
             return;
         }
         avoidance->enable();
-        AP::logger().Write_Event(LogEvent::AVOIDANCE_ADSB_ENABLE);
+        LOGGER_WRITE_EVENT(LogEvent::AVOIDANCE_ADSB_ENABLE);
         GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "ADSB Avoidance Enabled");
         return;
     }
 
     // disable AP_Avoidance
     avoidance->disable();
-    AP::logger().Write_Event(LogEvent::AVOIDANCE_ADSB_DISABLE);
+    LOGGER_WRITE_EVENT(LogEvent::AVOIDANCE_ADSB_DISABLE);
     GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "ADSB Avoidance Disabled");
 #endif
 }
@@ -1065,6 +1066,7 @@ void RC_Channel::do_aux_function_fence(const AuxSwitchPos ch_flag)
 }
 #endif
 
+#if AP_MISSION_ENABLED
 void RC_Channel::do_aux_function_clear_wp(const AuxSwitchPos ch_flag)
 {
     if (ch_flag == AuxSwitchPos::HIGH) {
@@ -1075,6 +1077,7 @@ void RC_Channel::do_aux_function_clear_wp(const AuxSwitchPos ch_flag)
         mission->clear();
     }
 }
+#endif  // AP_MISSION_ENABLED
 
 #if AP_SERVORELAYEVENTS_ENABLED && AP_RELAY_ENABLED
 void RC_Channel::do_aux_function_relay(const uint8_t relay, bool val)
@@ -1126,20 +1129,17 @@ void RC_Channel::do_aux_function_sprayer(const AuxSwitchPos ch_flag)
 #if AP_GRIPPER_ENABLED
 void RC_Channel::do_aux_function_gripper(const AuxSwitchPos ch_flag)
 {
-    AP_Gripper *gripper = AP::gripper();
-    if (gripper == nullptr) {
-        return;
-    }
+    AP_Gripper &gripper = AP::gripper();
 
     switch (ch_flag) {
     case AuxSwitchPos::LOW:
-        gripper->release();
+        gripper.release();
         break;
     case AuxSwitchPos::MIDDLE:
         // nothing
         break;
     case AuxSwitchPos::HIGH:
-        gripper->grab();
+        gripper.grab();
         break;
     }
 }
@@ -1177,6 +1177,7 @@ void RC_Channel::do_aux_function_rc_override_enable(const AuxSwitchPos ch_flag)
     }
 }
 
+#if AP_MISSION_ENABLED
 void RC_Channel::do_aux_function_mission_reset(const AuxSwitchPos ch_flag)
 {
     if (ch_flag != AuxSwitchPos::HIGH) {
@@ -1188,6 +1189,7 @@ void RC_Channel::do_aux_function_mission_reset(const AuxSwitchPos ch_flag)
     }
     mission->reset();
 }
+#endif
 
 void RC_Channel::do_aux_function_fft_notch_tune(const AuxSwitchPos ch_flag)
 {
@@ -1209,13 +1211,14 @@ void RC_Channel::do_aux_function_fft_notch_tune(const AuxSwitchPos ch_flag)
 #endif
 }
 
-bool RC_Channel::run_aux_function(aux_func_t ch_option, AuxSwitchPos pos, AuxFuncTriggerSource source)
+bool RC_Channel::run_aux_function(AUX_FUNC ch_option, AuxSwitchPos pos, AuxFuncTriggerSource source)
 {
 #if AP_SCRIPTING_ENABLED
     rc().set_aux_cached(ch_option, pos);
 #endif
     const bool ret = do_aux_function(ch_option, pos);
 
+#if HAL_LOGGING_ENABLED
     // @LoggerMessage: AUXF
     // @Description: Auxiliary function invocation information
     // @Field: TimeUS: Time since system startup
@@ -1238,10 +1241,12 @@ bool RC_Channel::run_aux_function(aux_func_t ch_option, AuxSwitchPos pos, AuxFun
         uint8_t(source),
         uint8_t(ret)
     );
+#endif
+
     return ret;
 }
 
-bool RC_Channel::do_aux_function(const aux_func_t ch_option, const AuxSwitchPos ch_flag)
+bool RC_Channel::do_aux_function(const AUX_FUNC ch_option, const AuxSwitchPos ch_flag)
 {
     switch (ch_option) {
 #if AP_FENCE_ENABLED
@@ -1315,11 +1320,13 @@ bool RC_Channel::do_aux_function(const aux_func_t ch_option, const AuxSwitchPos 
         break;
 #endif
 
+#if AP_BATTERY_ENABLED
     case AUX_FUNC::BATTERY_MPPT_ENABLE:
         if (ch_flag != AuxSwitchPos::MIDDLE) {
             AP::battery().MPPT_set_powered_state_to_all(ch_flag == AuxSwitchPos::HIGH);
         }
         break;
+#endif
 
 #if HAL_SPRAYER_ENABLED
     case AUX_FUNC::SPRAYER:
@@ -1544,6 +1551,7 @@ bool RC_Channel::do_aux_function(const aux_func_t ch_option, const AuxSwitchPos 
     }
 #endif
 
+#if HAL_LOGGING_ENABLED
     case AUX_FUNC::LOG_PAUSE: {
         AP_Logger *logger = AP_Logger::get_singleton();
         switch (ch_flag) {
@@ -1559,6 +1567,7 @@ bool RC_Channel::do_aux_function(const aux_func_t ch_option, const AuxSwitchPos 
         }
         break;
     }
+#endif
 
 #if COMPASS_CAL_ENABLED
     case AUX_FUNC::MAG_CAL: {
@@ -1672,7 +1681,7 @@ void RC_Channel::init_aux()
     if (!read_3pos_switch(position)) {
         position = AuxSwitchPos::LOW;
     }
-    init_aux_function((aux_func_t)option.get(), position);
+    init_aux_function((AUX_FUNC)option.get(), position);
 }
 
 // read_3pos_switch
@@ -1714,7 +1723,7 @@ RC_Channel::AuxSwitchPos RC_Channels::get_channel_pos(const uint8_t rcmapchan) c
     return chan != nullptr ? chan->get_aux_switch_pos() : RC_Channel::AuxSwitchPos::LOW;
 }
 
-RC_Channel *RC_Channels::find_channel_for_option(const RC_Channel::aux_func_t option)
+RC_Channel *RC_Channels::find_channel_for_option(const RC_Channel::AUX_FUNC option)
 {
     for (uint8_t i=0; i<NUM_RC_CHANNELS; i++) {
         RC_Channel *c = channel(i);
@@ -1722,7 +1731,7 @@ RC_Channel *RC_Channels::find_channel_for_option(const RC_Channel::aux_func_t op
             // odd?
             continue;
         }
-        if ((RC_Channel::aux_func_t)c->option.get() == option) {
+        if ((RC_Channel::AUX_FUNC)c->option.get() == option) {
             return c;
         }
     }
@@ -1758,7 +1767,7 @@ bool RC_Channels::duplicate_options_exist()
 }
 
 // convert option parameter from old to new
-void RC_Channels::convert_options(const RC_Channel::aux_func_t old_option, const RC_Channel::aux_func_t new_option)
+void RC_Channels::convert_options(const RC_Channel::AUX_FUNC old_option, const RC_Channel::AUX_FUNC new_option)
 {
     for (uint8_t i=0; i<NUM_RC_CHANNELS; i++) {
         RC_Channel *c = channel(i);
@@ -1766,7 +1775,7 @@ void RC_Channels::convert_options(const RC_Channel::aux_func_t old_option, const
             // odd?
             continue;
         }
-        if ((RC_Channel::aux_func_t)c->option.get() == old_option) {
+        if ((RC_Channel::AUX_FUNC)c->option.get() == old_option) {
             c->option.set_and_save((int16_t)new_option);
         }
     }
