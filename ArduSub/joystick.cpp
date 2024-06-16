@@ -621,6 +621,24 @@ void Sub::handle_jsbutton_press(uint8_t _button, bool shift, bool held)
     case JSButton::button_function_t::k_script_4:
         sub.script_buttons[3].press();
         break;
+    case JSButton::button_function_t::k_script_5:
+        sub.script_buttons[4].press();
+        break;
+    case JSButton::button_function_t::k_script_6:
+        sub.script_buttons[5].press();
+        break;
+    case JSButton::button_function_t::k_script_7:
+        sub.script_buttons[6].press();
+        break;
+    case JSButton::button_function_t::k_script_8:
+        sub.script_buttons[7].press();
+        break;
+    case JSButton::button_function_t::k_script_9:
+        sub.script_buttons[8].press();
+        break;
+    case JSButton::button_function_t::k_script_10:
+        sub.script_buttons[9].press();
+        break;
 #endif // AP_SCRIPTING_ENABLED
     }
 }
@@ -679,6 +697,24 @@ void Sub::handle_jsbutton_release(uint8_t _button, bool shift) {
         break;
     case JSButton::button_function_t::k_script_4:
         sub.script_buttons[3].release();
+        break;
+    case JSButton::button_function_t::k_script_5:
+        sub.script_buttons[4].release();
+        break;
+    case JSButton::button_function_t::k_script_6:
+        sub.script_buttons[5].release();
+        break;
+    case JSButton::button_function_t::k_script_7:
+        sub.script_buttons[6].release();
+        break;
+    case JSButton::button_function_t::k_script_8:
+        sub.script_buttons[7].release();
+        break;
+    case JSButton::button_function_t::k_script_9:
+        sub.script_buttons[8].release();
+        break;
+    case JSButton::button_function_t::k_script_10:
+        sub.script_buttons[9].release();
         break;
 #endif // AP_SCRIPTING_ENABLED
     }

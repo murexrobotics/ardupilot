@@ -595,7 +595,7 @@ private:
     GuidedSubMode guided_mode;
 
 #if AP_SCRIPTING_ENABLED
-    ScriptButton script_buttons[4];
+    ScriptButton script_buttons[10];
 #endif // AP_SCRIPTING_ENABLED
 
 public:

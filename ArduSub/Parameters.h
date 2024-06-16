@@ -454,7 +454,7 @@ static const struct AP_Param::defaults_table_struct defaults_table[] = {
     { "BTN0_FUNCTION",       1}, // Shift
     { "BTN4_FUNCTION",       4}, // Disarm
     { "BTN6_FUNCTION",       3}, // Arm
-    { "BTN0_SFUNCTION",      0} // Disabled
+    { "BTN0_SFUNCTION",      0}, // Disabled
  
     // Mode Controls
     { "BTN1_FUNCTION",       5}, // Manual
@@ -467,14 +467,13 @@ static const struct AP_Param::defaults_table_struct defaults_table[] = {
     { "BTN11_FUNCTION",      46}, // Trim Pitch Increase
     { "BTN12_FUNCTION",      47}, // Trim Pitch Decrease
     { "BTN13_FUNCTION",      45}, // Trim Roll Decrease
-    { "BTN14_FUNCTION",      44}, // Trim Roll Increase
+    { "BTN14_FUNCTION",      44}, // Trim Roll Increase1
 
     // Custom Buttons
     { "BTN11_SFUNCTION",     108}, // Scripting Button: arm turn right
     { "BTN12_SFUNCTION",     109}, // Scripting Button: arm turn left
     { "BTN13_SFUNCTION",     110}, // Scripting Button: arm close
     { "BTN14_SFUNCTION",     111}, // Scripting Button: arm open
-
 #else
     { "BARO_PROBE_EXT",      768},
     { "SERVO9_FUNCTION",     59},    // k_rcin9, lights 1

@@ -532,8 +532,8 @@ singleton QuadPlane method in_vtol_land_descent boolean
 include ../ArduSub/Sub.h depends APM_BUILD_TYPE(APM_BUILD_ArduSub)
 singleton Sub rename sub
 singleton Sub depends APM_BUILD_TYPE(APM_BUILD_ArduSub)
-singleton Sub method get_and_clear_button_count uint8_t uint8_t 1 4
-singleton Sub method is_button_pressed boolean uint8_t 1 4
+singleton Sub method get_and_clear_button_count uint8_t uint8_t 1 10
+singleton Sub method is_button_pressed boolean uint8_t 1 10
 singleton Sub method rangefinder_alt_ok boolean
 singleton Sub method get_rangefinder_target_cm float
 singleton Sub method set_rangefinder_target_cm boolean float'skip_check

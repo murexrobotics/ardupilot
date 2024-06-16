@@ -118,6 +118,14 @@ public:
         k_script_3              = 110,
         k_script_4              = 111,
 
+        // NOTE: This was implemented by MUREX
+        k_script_5             = 112,
+        k_script_6             = 113,
+        k_script_7             = 114,
+        k_script_8             = 115,
+        k_script_9             = 116,
+        k_script_10            = 117,
+
         // 112+ reserved for future functions
         k_nr_btn_functions         ///< This must be the last enum value (only add new values _before_ this one)
     } button_function_t;
